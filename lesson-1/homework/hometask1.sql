@@ -3,8 +3,8 @@
 DAtabase  is  a place  to store data
 Relational database - ozaro boglangan database 
 table - rows and columns 
-2. data query language(DQL), data definition language(DDL), data manipulation language(DML), data control language(DCL), transaction control language(TCL)
-3.-
+2. Malumotlar xavfsizligi, zaxiralash, qayta tiklay olish, integratsiya, reporting
+3.-windows and sql server
 4.create database SchoolDB
 use SchoolDB
 go
