@@ -1,22 +1,24 @@
+--create database lesson18
+--use lesson18
 
 1.
 
-create view MonthlySales as
-(
+;with cte as(
 select p.ProductID, 
-		sum(s.Quantity) as TotalQuantity, (sum(s.Quantity) * p.Price) as TotalRevenue
-from Sales s
+		sum(s.Quantity) as TotalQuantity, (sum(s.Quantity * p.Price)) as TotalRevenue
+from Sales s	
 join Products p on s.ProductID = p.ProductID
 group by p.ProductID, p.Price
 )
-select * from MonthlySales
+select * into #monthlySales  from cte
+select * from #monthlySales
 
 2.
 
-create view vw_ProductSalesSummary as
+alter view vw_ProductSalesSummary as
 (
 select s.ProductID, ProductName, Category, 
-		(select sum(quantity) from sales s1 where s1.ProductID = s.ProductID)* p.Price as CountQuantity
+	sum(quantity) *p.Price TotalQuantitySold
 from sales s
 join Products p on s.ProductID = p.ProductID
 group by  s.ProductID, ProductName, Category, p.Price
@@ -25,28 +27,18 @@ select * from vw_ProductSalesSummary
 
 3.
 
-CREATE FUNCTION fn_GetTotalRevenueForProduct (@ProductID INT)
-RETURNS VARCHAR(500)
-AS
-BEGIN
-    DECLARE @Revenue VARCHAR(500);
 
-    WITH cte AS (
-        SELECT 
-            s.ProductID, 
-            p.ProductName, 
-            p.Category, 
-            SUM(s.Quantity) * p.Price AS CountQuantity
-        FROM sales s
-        JOIN Products p ON s.ProductID = p.ProductID
-        WHERE s.ProductID = @ProductID
-        GROUP BY s.ProductID, p.ProductName, p.Category, p.Price
-    )
-    SELECT @Revenue = CAST(CountQuantity AS VARCHAR(500))
-    FROM cte;
-
-    RETURN @Revenue;
-END;
+create function fn_GetTotalRevenueForProduct(@ProductID INT)
+returns int
+as
+begin 
+declare @res int;
+select  @res = sum(Quantity * Price) 
+from sales s
+join Products p on s.ProductID = p.ProductID
+where s.ProductID = @ProductID
+return isnull(@res, 0)
+end
 
 select dbo.fn_GetTotalRevenueForProduct(1)
 
@@ -57,15 +49,12 @@ returns table
 as 
 return
 (
-	with cte as (
-	select s.ProductID, ProductName, Category, (select sum(quantity) from sales s2 where s2.ProductID = s.ProductID) TotalQuantity
-			,(select sum(quantity) from sales s1 where s1.ProductID = s.ProductID)* p.Price as  TotalRevenue
+	select ProductName, Category, 
+		sum(quantity) *p.Price TotalQuantitySold
 	from sales s
 	join Products p on s.ProductID = p.ProductID
 	where Category = @Category
-	group by  s.ProductID, ProductName, Category, p.Price
-	)
-	select ProductName, TotalQuantity, TotalRevenue from cte
+	group by   ProductName, Category, p.Price
 )
 select* from  dbo.fn_GetSalesByCategory('Electronics')
 
@@ -113,9 +102,8 @@ select * from cte
 select * from dbo. fn_GetNumbersBetween(5, 18)
 
 7.
-create table salary (id int , salary int)
-insert into salary values (1, 100), (2, 200), (3,300)
-
+create table Employee (id int , salary int)
+insert into Employee values (1, 100), (2, 200), (3,300)
 declare @num int =5
 create function getNthHighestSalary(@num int)
 returns table
@@ -123,7 +111,7 @@ return (
 with cte as(
 select *,
 dense_rank() over(order by salary desc) as rw
-from salary
+from Employee
 )
 select salary from cte
 where rw = @num
@@ -131,22 +119,17 @@ where rw = @num
 select * from dbo.getNthHighestSalary(3)
 
 8.
-
-with cte2 as(
-select accepter_id, count(accepter_id) count_id from RequestAccepted
-group by accepter_id
+with cte as(
+select requester_id as person , accepter_id as friend
+from RequestAccepted
+union all
+select accepter_id as person, requester_id as friend 
+from RequestAccepted
 )
-, cte as(
-select requester_id, count(requester_id) count_id from RequestAccepted
-group by requester_id
-), cte3 as(
-select coalesce(requester_id, accepter_id) id, isnull(cte.count_id,0)+ ISNULL(cte2.count_id, 0) num ,
-row_number() over(order by isnull(cte.count_id,0)+ ISNULL(cte2.count_id, 0) desc ) rw
+select top 1 person as id, count(distinct friend) as total_friend 
 from cte
-full join cte2 on cte.requester_id = cte2.accepter_id
-)
-select id, num from cte3
-where rw =1
+group by person
+order by total_friend desc
 
 9.
 
